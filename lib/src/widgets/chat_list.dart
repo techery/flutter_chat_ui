@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:diffutil_dart/diffutil.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../models/bubble_rtl_alignment.dart';
@@ -85,19 +88,20 @@ class _ChatListState extends State<ChatList>
   bool _isNextPageLoading = false;
   final GlobalKey<SliverAnimatedListState> _listKey =
       GlobalKey<SliverAnimatedListState>();
+
+  final GlobalKey _centerKey = GlobalKey();
   late List<Object> _oldData = List.from(widget.items);
 
   @override
   void initState() {
     super.initState();
-
     didUpdateWidget(widget);
   }
 
-  void _calculateDiffs(List<Object> oldList) async {
+  void _calculateDiffs(List<Object> oldList, List<Object> newItems) async {
     final diffResult = calculateListDiff<Object>(
       oldList,
-      widget.items,
+      newItems,
       equalityChecker: (item1, item2) {
         if (item1 is Map<String, Object> && item2 is Map<String, Object>) {
           final message1 = item1['message']! as types.Message;
@@ -129,7 +133,7 @@ class _ChatListState extends State<ChatList>
 
     _scrollToBottomIfNeeded(oldList);
 
-    _oldData = List.from(widget.items);
+    _oldData = List.from(newItems);
   }
 
   Widget _newMessageBuilder(int index, Animation<double> animation) {
@@ -206,7 +210,7 @@ class _ChatListState extends State<ChatList>
   void didUpdateWidget(covariant ChatList oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    _calculateDiffs(oldWidget.items);
+    _calculateDiffs(oldWidget.items, widget.items);
   }
 
   @override
@@ -264,6 +268,7 @@ class _ChatListState extends State<ChatList>
           controller: widget.scrollController,
           keyboardDismissBehavior: widget.keyboardDismissBehavior,
           physics: widget.scrollPhysics,
+          center: _centerKey,
           reverse: true,
           slivers: [
             if (widget.bottomWidget != null)
@@ -296,6 +301,7 @@ class _ChatListState extends State<ChatList>
               ),
             ),
             SliverPadding(
+              key: _centerKey,
               padding: InheritedChatTheme.of(context).theme.chatContentMargin,
               sliver: SliverAnimatedList(
                 findChildIndexCallback: (Key key) {
