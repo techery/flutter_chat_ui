@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -39,6 +40,7 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   List<types.Message> _messages = [];
+  final List<types.TextMessage> _streamedMessages = [];
   final _user = const types.User(
     id: '82091008-a484-4a89-ae75-a22bf8d6f3ac',
   );
@@ -204,14 +206,26 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleSendPressed(types.PartialText message) {
+    var t = message.text;
     final textMessage = types.TextMessage(
       author: _user,
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: const Uuid().v4(),
-      text: message.text,
+      text: t,
     );
 
-    _addMessage(textMessage);
+    _streamedMessages.insert(0, textMessage);
+    final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      t = '$t New message';
+      setState(() {
+        _streamedMessages[0] = textMessage.copyWith(
+          text: t,
+        ) as types.TextMessage;
+      });
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      timer.cancel();
+    });
   }
 
   void _loadMessages() async {
@@ -228,6 +242,10 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Chat(
+          streamedItems: _streamedMessages,
+          streamedItemsBuilder: (item, index) => SizedBox(
+            child: Text('$item'),
+          ),
           messages: _messages,
           onAttachmentPressed: _handleAttachmentPressed,
           onMessageTap: _handleMessageTap,

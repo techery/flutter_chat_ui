@@ -104,6 +104,8 @@ class Chat extends StatefulWidget {
     this.slidableMessageBuilder,
     this.isLeftStatus = false,
     this.messageWidthRatio = 0.72,
+    this.streamedItems,
+    this.streamedItemsBuilder,
   });
 
   /// See [Message.audioMessageBuilder].
@@ -342,6 +344,9 @@ class Chat extends StatefulWidget {
   /// Width ratio for message bubble.
   final double messageWidthRatio;
 
+  final List<types.Message>? streamedItems;
+  final Widget Function(Object, int? index)? streamedItemsBuilder;
+
   @override
   State<Chat> createState() => ChatState();
 }
@@ -352,6 +357,7 @@ class ChatState extends State<Chat> {
   static const String _unreadHeaderId = 'unread_header_id';
 
   List<Object> _chatMessages = [];
+  List<Object> _streamedChatMessages = [];
   List<PreviewImage> _gallery = [];
   PageController? _galleryPageController;
   bool _hadScrolledToUnreadOnOpen = false;
@@ -588,7 +594,10 @@ class ChatState extends State<Chat> {
 
     if (widget.messages.isNotEmpty) {
       final result = calculateChatMessages(
-        widget.messages,
+        [
+          ...?widget.streamedItems,
+          ...widget.messages,
+        ],
         widget.user,
         customDateHeaderText: widget.customDateHeaderText,
         dateFormat: widget.dateFormat,
@@ -602,7 +611,15 @@ class ChatState extends State<Chat> {
         messagesSpacerHeight: widget.messagesSpacerHeight,
       );
 
-      _chatMessages = result[0] as List<Object>;
+      final messages = result[0] as List<Object>;
+      final normalMessagesStart = messages.indexWhere((element) {
+        if (element is! Map<String, dynamic>) return false;
+        final message = element['message'];
+        if (message == null) return false;
+        return message.id == widget.messages.firstOrNull?.id;
+      });
+      _chatMessages = messages.sublist(normalMessagesStart);
+      _streamedChatMessages = messages.sublist(0, normalMessagesStart);
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
@@ -668,6 +685,14 @@ class ChatState extends State<Chat> {
                                         widget.typingIndicatorOptions,
                                     useTopSafeAreaInset:
                                         widget.useTopSafeAreaInset ?? isMobile,
+                                    streamedItems: _streamedChatMessages,
+                                    streamedItemsBuilder:
+                                        (Object item, int? index) =>
+                                            _messageBuilder(
+                                      item,
+                                      constraints,
+                                      index,
+                                    ),
                                   ),
                                 ),
                               ),
