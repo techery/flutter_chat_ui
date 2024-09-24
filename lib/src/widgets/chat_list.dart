@@ -27,7 +27,7 @@ class ChatList extends StatefulWidget {
     this.scrollPhysics,
     this.typingIndicatorOptions,
     required this.useTopSafeAreaInset,
-    this.streamedItems,
+    this.streamedItems = const [],
     this.streamedItemsBuilder,
   });
 
@@ -73,7 +73,7 @@ class ChatList extends StatefulWidget {
   /// Whether to use top safe area inset for the list.
   final bool useTopSafeAreaInset;
 
-  final List<Object>? streamedItems;
+  final List<Object> streamedItems;
   final Widget Function(Object, int? index)? streamedItemsBuilder;
 
   @override
@@ -96,6 +96,7 @@ class _ChatListState extends State<ChatList>
 
   final GlobalKey _centerKey = GlobalKey();
   late List<Object> _oldData = List.from(widget.items);
+  late List<Object> _oldStreamedItems = List.from(widget.streamedItems);
 
   @override
   void initState() {
@@ -122,7 +123,7 @@ class _ChatListState extends State<ChatList>
     for (final update in diffResult.getUpdates(batch: false)) {
       update.when(
         insert: (pos, count) {
-          _listKey.currentState?.insertItem(pos);
+          _listKey.currentState?.insertItem(pos, duration: Duration.zero);
         },
         remove: (pos, count) {
           final item = oldList[pos];
@@ -136,9 +137,27 @@ class _ChatListState extends State<ChatList>
       );
     }
 
-    _scrollToBottomIfNeeded(oldList);
+    // _scrollToBottomIfNeeded(oldList);
 
     _oldData = List.from(newItems);
+    if (widget.streamedItems.isEmpty &&
+        _oldStreamedItems.isNotEmpty &&
+        widget.scrollController.hasClients) {
+      print('Empty!');
+      final minScrollExtent =
+          widget.scrollController.position.minScrollExtent.abs();
+      final offset = widget.scrollController.offset.abs();
+      final pos = minScrollExtent - offset;
+
+      final timer = Timer.periodic(const Duration(milliseconds: 1), (timer) {
+        widget.scrollController.jumpTo(pos);
+        print('JUMP TO $pos');
+      });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        timer.cancel();
+      });
+    }
+    _oldStreamedItems = widget.streamedItems;
   }
 
   Widget _newMessageBuilder(
@@ -328,10 +347,10 @@ class _ChatListState extends State<ChatList>
                   }
                   return null;
                 },
-                itemCount: widget.streamedItems?.length ?? 0,
+                itemCount: widget.streamedItems.length,
                 itemBuilder: (_, index) => _newMessageBuilder(
-                  widget.streamedItems!,
-                  (widget.streamedItems?.length ?? 0) - index,
+                  widget.streamedItems,
+                  widget.streamedItems.length - index,
                   null,
                   widget.streamedItemsBuilder!,
                 ),

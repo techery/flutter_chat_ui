@@ -104,7 +104,8 @@ class Chat extends StatefulWidget {
     this.slidableMessageBuilder,
     this.isLeftStatus = false,
     this.messageWidthRatio = 0.72,
-    this.streamedItems,
+    this.innerScrollableKey,
+    this.streamedItems = const [],
     this.streamedItemsBuilder,
   });
 
@@ -344,7 +345,9 @@ class Chat extends StatefulWidget {
   /// Width ratio for message bubble.
   final double messageWidthRatio;
 
-  final List<types.Message>? streamedItems;
+  final Key? innerScrollableKey;
+
+  final List<types.Message> streamedItems;
   final Widget Function(Object, int? index)? streamedItemsBuilder;
 
   @override
@@ -595,7 +598,7 @@ class ChatState extends State<Chat> {
     if (widget.messages.isNotEmpty) {
       final result = calculateChatMessages(
         [
-          ...?widget.streamedItems,
+          ...widget.streamedItems,
           ...widget.messages,
         ],
         widget.user,
@@ -612,14 +615,20 @@ class ChatState extends State<Chat> {
       );
 
       final messages = result[0] as List<Object>;
-      final normalMessagesStart = messages.indexWhere((element) {
-        if (element is! Map<String, dynamic>) return false;
-        final message = element['message'];
-        if (message == null) return false;
-        return message.id == widget.messages.firstOrNull?.id;
-      });
-      _chatMessages = messages.sublist(normalMessagesStart);
-      _streamedChatMessages = messages.sublist(0, normalMessagesStart);
+      var normalMessagesStart = 0;
+      if (widget.streamedItems.isNotEmpty) {
+        normalMessagesStart = messages.indexWhere((element) {
+          if (element is! Map<String, dynamic>) return false;
+          final message = element['message'];
+          if (message == null) return false;
+          return message.id == widget.messages.firstOrNull?.id;
+        });
+        _chatMessages = messages.sublist(normalMessagesStart);
+        _streamedChatMessages = messages.sublist(0, normalMessagesStart);
+      } else {
+        _chatMessages = messages;
+        _streamedChatMessages = const [];
+      }
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
@@ -663,6 +672,7 @@ class ChatState extends State<Chat> {
                                     BoxConstraints constraints,
                                   ) =>
                                       ChatList(
+                                    key: widget.innerScrollableKey,
                                     bottomWidget: widget.listBottomWidget,
                                     bubbleRtlAlignment:
                                         widget.bubbleRtlAlignment!,

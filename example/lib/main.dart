@@ -14,6 +14,7 @@ import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 void main() {
   initializeDateFormatting().then((_) => runApp(const MyApp()));
@@ -39,6 +40,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  final GlobalKey _chatScrollableKey = GlobalKey();
+  late AutoScrollController _controller;
   List<types.Message> _messages = [];
   final List<types.TextMessage> _streamedMessages = [];
   final _user = const types.User(
@@ -48,6 +51,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    _controller = AutoScrollController();
     _loadMessages();
   }
 
@@ -215,16 +219,34 @@ class _ChatPageState extends State<ChatPage> {
     );
 
     _streamedMessages.insert(0, textMessage);
+    void scroll() {
+      final streamedHeight = _controller.position.minScrollExtent.abs();
+      final vpHeight = _chatScrollableKey.currentContext!.size!.height;
+      final threshold = vpHeight - 200;
+      final pos = streamedHeight < threshold
+          ? _controller.position.minScrollExtent
+          : -threshold;
+      print('POS $pos');
+      _controller.jumpTo(pos);
+    }
+
     final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      t = '$t New message';
+      t = '$t\nNew message';
       setState(() {
         _streamedMessages[0] = textMessage.copyWith(
           text: t,
         ) as types.TextMessage;
       });
+      scroll();
     });
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 5), () {
+      print('Finished streaming');
       timer.cancel();
+
+      final msg = _streamedMessages.removeAt(0);
+      _addMessage(msg);
+
+      print('Updated messages');
     });
   }
 
@@ -242,6 +264,8 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Chat(
+          scrollController: _controller,
+          innerScrollableKey: _chatScrollableKey,
           streamedItems: _streamedMessages,
           streamedItemsBuilder: (item, index) => SizedBox(
             child: Text('$item'),
