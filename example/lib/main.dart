@@ -51,7 +51,10 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
-    _controller = AutoScrollController();
+    _controller = CustomAutoScrollController(
+      beginGetter: (r) => r.top,
+      endGetter: (r) => r.bottom,
+    );
     _loadMessages();
   }
 
@@ -212,24 +215,17 @@ class _ChatPageState extends State<ChatPage> {
   void _handleSendPressed(types.PartialText message) {
     var t = message.text;
     final textMessage = types.TextMessage(
-      author: _user,
+      author: const types.User(
+        firstName: 'John',
+        id: '4c2307ba-3d40-442f-b1ff-b271f63904ca',
+        lastName: 'Doe',
+      ),
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: const Uuid().v4(),
       text: t,
     );
 
     _streamedMessages.insert(0, textMessage);
-    void scroll() {
-      final streamedHeight = _controller.position.minScrollExtent.abs();
-      final vpHeight = _chatScrollableKey.currentContext!.size!.height;
-      final threshold = vpHeight - 200;
-      final pos = streamedHeight < threshold
-          ? _controller.position.minScrollExtent
-          : -threshold;
-      print('POS $pos');
-      _controller.jumpTo(pos);
-    }
-
     final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       t = '$t\nNew message';
       setState(() {
@@ -237,7 +233,6 @@ class _ChatPageState extends State<ChatPage> {
           text: t,
         ) as types.TextMessage;
       });
-      scroll();
     });
     Future.delayed(const Duration(seconds: 5), () {
       print('Finished streaming');

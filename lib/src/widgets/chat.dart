@@ -732,3 +732,89 @@ class ChatState extends State<Chat> {
         ),
       );
 }
+
+class CustomAutoScrollController extends ScrollController
+    with AutoScrollControllerMixin {
+  CustomAutoScrollController({
+    super.initialScrollOffset,
+    super.keepScrollOffset,
+    this.suggestedRowHeight,
+    this.viewportBoundaryGetter = defaultViewportBoundaryGetter,
+    required this.beginGetter,
+    required this.endGetter,
+    AutoScrollController? copyTagsFrom,
+    super.debugLabel,
+    super.onAttach,
+    super.onDetach,
+  }) {
+    if (copyTagsFrom != null) tagMap.addAll(copyTagsFrom.tagMap);
+  }
+  @override
+  final double? suggestedRowHeight;
+  @override
+  final ViewportBoundaryGetter viewportBoundaryGetter;
+  @override
+  final AxisValueGetter beginGetter;
+  @override
+  final AxisValueGetter endGetter;
+
+  @override
+  ScrollPosition createScrollPosition(
+    ScrollPhysics physics,
+    ScrollContext context,
+    ScrollPosition? oldPosition,
+  ) =>
+      CustomScrollPosition(
+        physics: physics,
+        context: context,
+        initialPixels: initialScrollOffset,
+        keepScrollOffset: keepScrollOffset,
+        oldPosition: oldPosition,
+        debugLabel: debugLabel,
+      );
+}
+
+class CustomScrollPosition extends ScrollPositionWithSingleContext {
+  CustomScrollPosition({
+    required super.physics,
+    required super.context,
+    super.keepScrollOffset,
+    super.initialPixels,
+    super.oldPosition,
+    super.debugLabel,
+  });
+
+  @override
+  bool correctForNewDimensions(
+    ScrollMetrics oldPosition,
+    ScrollMetrics newPosition,
+  ) {
+    print('Old: ${oldPosition.minScrollExtent}');
+    print('New: ${newPosition.minScrollExtent}');
+    double newPixels;
+    newPixels = physics.adjustPositionForNewDimensions(
+      oldPosition: oldPosition,
+      newPosition: newPosition,
+      isScrolling: activity!.isScrolling,
+      velocity: activity!.velocity,
+    );
+    if (newPixels <= 0) {
+      print('(1)New Pixels: $newPixels');
+      if (oldPosition.minScrollExtent > newPosition.minScrollExtent) {
+        final streamedHeight = newPosition.minScrollExtent.abs();
+        final vpHeight = oldPosition.viewportDimension;
+        final threshold = vpHeight - 100;
+        newPixels = streamedHeight < threshold
+            ? newPosition.minScrollExtent
+            : -threshold;
+        print('(2) New Pixels: $newPixels');
+      }
+    }
+    print('New Pixels: $newPixels');
+    if (newPixels != pixels) {
+      correctPixels(newPixels);
+      return false;
+    }
+    return true;
+  }
+}

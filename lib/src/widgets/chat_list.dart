@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
+import '../../flutter_chat_ui.dart';
 import '../models/bubble_rtl_alignment.dart';
 import 'state/inherited_chat_theme.dart';
 import 'state/inherited_user.dart';
@@ -96,7 +97,6 @@ class _ChatListState extends State<ChatList>
 
   final GlobalKey _centerKey = GlobalKey();
   late List<Object> _oldData = List.from(widget.items);
-  late List<Object> _oldStreamedItems = List.from(widget.streamedItems);
 
   @override
   void initState() {
@@ -137,27 +137,9 @@ class _ChatListState extends State<ChatList>
       );
     }
 
-    // _scrollToBottomIfNeeded(oldList);
+    _scrollToBottomIfNeeded(oldList);
 
     _oldData = List.from(newItems);
-    if (widget.streamedItems.isEmpty &&
-        _oldStreamedItems.isNotEmpty &&
-        widget.scrollController.hasClients) {
-      print('Empty!');
-      final minScrollExtent =
-          widget.scrollController.position.minScrollExtent.abs();
-      final offset = widget.scrollController.offset.abs();
-      final pos = minScrollExtent - offset;
-
-      final timer = Timer.periodic(const Duration(milliseconds: 1), (timer) {
-        widget.scrollController.jumpTo(pos);
-        print('JUMP TO $pos');
-      });
-      Future.delayed(const Duration(milliseconds: 300), () {
-        timer.cancel();
-      });
-    }
-    _oldStreamedItems = widget.streamedItems;
   }
 
   Widget _newMessageBuilder(
@@ -256,16 +238,19 @@ class _ChatListState extends State<ChatList>
   Widget build(BuildContext context) =>
       NotificationListener<ScrollNotification>(
         onNotification: (notification) {
-          if (notification.metrics.pixels > 10.0 && !_indicatorOnScrollStatus) {
-            setState(() {
-              _indicatorOnScrollStatus = !_indicatorOnScrollStatus;
-            });
-          } else if (notification.metrics.pixels == 0.0 &&
-              _indicatorOnScrollStatus) {
-            setState(() {
-              _indicatorOnScrollStatus = !_indicatorOnScrollStatus;
-            });
-          }
+          WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+            if (notification.metrics.pixels > 10.0 &&
+                !_indicatorOnScrollStatus) {
+              setState(() {
+                _indicatorOnScrollStatus = !_indicatorOnScrollStatus;
+              });
+            } else if (notification.metrics.pixels == 0.0 &&
+                _indicatorOnScrollStatus) {
+              setState(() {
+                _indicatorOnScrollStatus = !_indicatorOnScrollStatus;
+              });
+            }
+          });
 
           if (widget.onEndReached == null || widget.isLastPage == true) {
             return false;
