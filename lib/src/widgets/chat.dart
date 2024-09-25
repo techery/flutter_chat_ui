@@ -5,6 +5,7 @@ import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart' show PhotoViewComputedScale;
 import 'package:scroll_to_index/scroll_to_index.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../chat_l10n.dart';
 import '../chat_theme.dart';
@@ -85,7 +86,11 @@ class Chat extends StatefulWidget {
     this.onMessageVisibilityChanged,
     this.onPreviewDataFetched,
     required this.onSendPressed,
+    this.positionedIndex = 0,
+    this.positionedAlignment = 0,
     this.scrollController,
+    this.itemScrollController,
+    this.scrollOffsetController,
     this.scrollPhysics,
     this.scrollToUnreadOptions = const ScrollToUnreadOptions(),
     this.showUserAvatars = false,
@@ -277,7 +282,9 @@ class Chat extends StatefulWidget {
 
   /// See [ChatList.scrollController].
   /// If provided, you cannot use the scroll to message functionality.
-  final AutoScrollController? scrollController;
+  final ScrollController? scrollController;
+  final ItemScrollController? itemScrollController;
+  final ScrollOffsetController? scrollOffsetController;
 
   /// See [ChatList.scrollPhysics].
   final ScrollPhysics? scrollPhysics;
@@ -346,6 +353,8 @@ class Chat extends StatefulWidget {
   final double messageWidthRatio;
 
   final Key? innerScrollableKey;
+  final int positionedIndex;
+  final double positionedAlignment;
 
   final List<types.Message> streamedItems;
   final Widget Function(Object, int? index)? streamedItemsBuilder;
@@ -366,26 +375,30 @@ class ChatState extends State<Chat> {
   bool _hadScrolledToUnreadOnOpen = false;
   bool _isImageViewVisible = false;
 
-  late final AutoScrollController _scrollController;
+  late ScrollController _scrollController;
+  late final ItemScrollController _itemScrollController;
+  int _positionedIndex = 0;
 
   @override
   void initState() {
     super.initState();
 
-    _scrollController = widget.scrollController ?? AutoScrollController();
+    _itemScrollController =
+        widget.itemScrollController ?? ItemScrollController();
+    _scrollController = widget.scrollController ?? ScrollController();
 
     didUpdateWidget(widget);
   }
 
   /// Scroll to the unread header.
   void scrollToUnreadHeader() {
-    final unreadHeaderIndex = chatMessageAutoScrollIndexById[_unreadHeaderId];
-    if (unreadHeaderIndex != null) {
-      _scrollController.scrollToIndex(
-        unreadHeaderIndex,
-        duration: widget.scrollToUnreadOptions.scrollDuration,
-      );
-    }
+    // final unreadHeaderIndex = chatMessageAutoScrollIndexById[_unreadHeaderId];
+    // if (unreadHeaderIndex != null) {
+    //   _scrollController.animateTo(
+    //     unreadHeaderIndex,
+    //     duration: widget.scrollToUnreadOptions.scrollDuration,
+    //   );
+    // }
   }
 
   /// Scroll to the message with the specified [id].
@@ -396,25 +409,33 @@ class ChatState extends State<Chat> {
     Duration? highlightDuration,
     AutoScrollPosition? preferPosition,
   }) async {
-    await _scrollController.scrollToIndex(
-      chatMessageAutoScrollIndexById[id]!,
-      duration: scrollDuration ?? scrollAnimationDuration,
-      preferPosition: preferPosition ?? AutoScrollPosition.middle,
-    );
-    if (withHighlight) {
-      await _scrollController.highlight(
-        chatMessageAutoScrollIndexById[id]!,
-        highlightDuration: highlightDuration ?? const Duration(seconds: 3),
-      );
-    }
+    final alignment = switch (preferPosition ?? AutoScrollPosition.middle) {
+      AutoScrollPosition.begin => 0.0,
+      AutoScrollPosition.middle => 0.5,
+      AutoScrollPosition.end => 1.0,
+    };
+    // await _scrollController.scrollTo(
+    //   index: chatMessageAutoScrollIndexById[id]!,
+    //   duration: scrollDuration ?? scrollAnimationDuration,
+    //   alignment: alignment,
+    // );
+    // TODO: incorporate highlight
+    // if (withHighlight) {
+    //   await _scrollController.highlight(
+    //     chatMessageAutoScrollIndexById[id]!,
+    //     highlightDuration: highlightDuration ?? const Duration(seconds: 3),
+    //   );
+    // }
   }
 
   /// Highlight the message with the specified [id].
-  void highlightMessage(String id, {Duration? duration}) =>
-      _scrollController.highlight(
-        chatMessageAutoScrollIndexById[id]!,
-        highlightDuration: duration ?? const Duration(seconds: 3),
-      );
+  void highlightMessage(String id, {Duration? duration}) {
+    // TODO: incorporate highlight
+    // _scrollController.highlight(
+    //     chatMessageAutoScrollIndexById[id]!,
+    //     highlightDuration: duration ?? const Duration(seconds: 3),
+    //   );
+  }
 
   Widget _emptyStateBuilder() =>
       widget.emptyState ??
@@ -466,13 +487,9 @@ class ChatState extends State<Chat> {
         height: object.height,
       );
     } else if (object is UnreadHeaderData) {
-      return AutoScrollTag(
-        controller: _scrollController,
-        index: index ?? -1,
+      return UnreadHeader(
         key: const Key('unread_header'),
-        child: UnreadHeader(
-          marginTop: object.marginTop,
-        ),
+        marginTop: object.marginTop,
       );
     } else {
       final map = object as Map<String, Object>;
@@ -541,11 +558,11 @@ class ChatState extends State<Chat> {
             : widget.slidableMessageBuilder!(message, msgWidget);
       }
 
-      return AutoScrollTag(
-        controller: _scrollController,
-        index: index ?? -1,
+      return KeyedSubtree(
+        // controller: _scrollController,
+        // index: index ?? -1,
         key: Key('scroll-${message.id}'),
-        highlightColor: widget.theme.highlightMessageColor,
+        // highlightColor: widget.theme.highlightMessageColor,
         child: messageWidget,
       );
     }
@@ -596,11 +613,12 @@ class ChatState extends State<Chat> {
     super.didUpdateWidget(oldWidget);
 
     if (widget.messages.isNotEmpty) {
+      final items = [
+        ...widget.streamedItems,
+        ...widget.messages,
+      ];
       final result = calculateChatMessages(
-        [
-          ...widget.streamedItems,
-          ...widget.messages,
-        ],
+        items,
         widget.user,
         customDateHeaderText: widget.customDateHeaderText,
         dateFormat: widget.dateFormat,
@@ -616,7 +634,8 @@ class ChatState extends State<Chat> {
 
       final messages = result[0] as List<Object>;
       var normalMessagesStart = 0;
-      if (widget.streamedItems.isNotEmpty) {
+      // if (widget.streamedItems.isNotEmpty) {
+      if (false) {
         normalMessagesStart = messages.indexWhere((element) {
           if (element is! Map<String, dynamic>) return false;
           final message = element['message'];
@@ -629,6 +648,14 @@ class ChatState extends State<Chat> {
         _chatMessages = messages;
         _streamedChatMessages = const [];
       }
+      final positionedMessage = items[widget.positionedIndex];
+      final newIndex = messages.indexWhere((element) {
+        if (element is! Map<String, dynamic>) return false;
+        final message = element['message'];
+        if (message == null) return false;
+        return message.id == (positionedMessage).id;
+      });
+      _positionedIndex = newIndex - 1;
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
@@ -639,7 +666,6 @@ class ChatState extends State<Chat> {
   @override
   void dispose() {
     _galleryPageController?.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -672,6 +698,9 @@ class ChatState extends State<Chat> {
                                     BoxConstraints constraints,
                                   ) =>
                                       ChatList(
+                                    positionedIndex: _positionedIndex,
+                                    positionedAlignment:
+                                        widget.positionedAlignment,
                                     key: widget.innerScrollableKey,
                                     bottomWidget: widget.listBottomWidget,
                                     bubbleRtlAlignment:
@@ -689,20 +718,15 @@ class ChatState extends State<Chat> {
                                     onEndReached: widget.onEndReached,
                                     onEndReachedThreshold:
                                         widget.onEndReachedThreshold,
-                                    scrollController: _scrollController,
+                                    controller: _scrollController,
+                                    // itemScrollController: _scrollController,
                                     scrollPhysics: widget.scrollPhysics,
                                     typingIndicatorOptions:
                                         widget.typingIndicatorOptions,
                                     useTopSafeAreaInset:
                                         widget.useTopSafeAreaInset ?? isMobile,
-                                    streamedItems: _streamedChatMessages,
-                                    streamedItemsBuilder:
-                                        (Object item, int? index) =>
-                                            _messageBuilder(
-                                      item,
-                                      constraints,
-                                      index,
-                                    ),
+                                    // scrollOffsetController:
+                                    //     widget.scrollOffsetController,
                                   ),
                                 ),
                               ),
@@ -731,90 +755,4 @@ class ChatState extends State<Chat> {
           ),
         ),
       );
-}
-
-class CustomAutoScrollController extends ScrollController
-    with AutoScrollControllerMixin {
-  CustomAutoScrollController({
-    super.initialScrollOffset,
-    super.keepScrollOffset,
-    this.suggestedRowHeight,
-    this.viewportBoundaryGetter = defaultViewportBoundaryGetter,
-    required this.beginGetter,
-    required this.endGetter,
-    AutoScrollController? copyTagsFrom,
-    super.debugLabel,
-    super.onAttach,
-    super.onDetach,
-  }) {
-    if (copyTagsFrom != null) tagMap.addAll(copyTagsFrom.tagMap);
-  }
-  @override
-  final double? suggestedRowHeight;
-  @override
-  final ViewportBoundaryGetter viewportBoundaryGetter;
-  @override
-  final AxisValueGetter beginGetter;
-  @override
-  final AxisValueGetter endGetter;
-
-  @override
-  ScrollPosition createScrollPosition(
-    ScrollPhysics physics,
-    ScrollContext context,
-    ScrollPosition? oldPosition,
-  ) =>
-      CustomScrollPosition(
-        physics: physics,
-        context: context,
-        initialPixels: initialScrollOffset,
-        keepScrollOffset: keepScrollOffset,
-        oldPosition: oldPosition,
-        debugLabel: debugLabel,
-      );
-}
-
-class CustomScrollPosition extends ScrollPositionWithSingleContext {
-  CustomScrollPosition({
-    required super.physics,
-    required super.context,
-    super.keepScrollOffset,
-    super.initialPixels,
-    super.oldPosition,
-    super.debugLabel,
-  });
-
-  @override
-  bool correctForNewDimensions(
-    ScrollMetrics oldPosition,
-    ScrollMetrics newPosition,
-  ) {
-    print('Old: ${oldPosition.minScrollExtent}');
-    print('New: ${newPosition.minScrollExtent}');
-    double newPixels;
-    newPixels = physics.adjustPositionForNewDimensions(
-      oldPosition: oldPosition,
-      newPosition: newPosition,
-      isScrolling: activity!.isScrolling,
-      velocity: activity!.velocity,
-    );
-    if (newPixels <= 0) {
-      print('(1)New Pixels: $newPixels');
-      if (oldPosition.minScrollExtent > newPosition.minScrollExtent) {
-        final streamedHeight = newPosition.minScrollExtent.abs();
-        final vpHeight = oldPosition.viewportDimension;
-        final threshold = vpHeight - 100;
-        newPixels = streamedHeight < threshold
-            ? newPosition.minScrollExtent
-            : -threshold;
-        print('(2) New Pixels: $newPixels');
-      }
-    }
-    print('New Pixels: $newPixels');
-    if (newPixels != pixels) {
-      correctPixels(newPixels);
-      return false;
-    }
-    return true;
-  }
 }

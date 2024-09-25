@@ -13,6 +13,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:uuid/uuid.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 
@@ -41,20 +42,23 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final GlobalKey _chatScrollableKey = GlobalKey();
-  late AutoScrollController _controller;
+  late ItemScrollController _controller;
+  late ScrollOffsetController _scrollOffsetController;
+  late ScrollController _scrollController;
   List<types.Message> _messages = [];
   final List<types.TextMessage> _streamedMessages = [];
   final _user = const types.User(
     id: '82091008-a484-4a89-ae75-a22bf8d6f3ac',
   );
+  int positionedIndex = 0;
+  double positionAlignment = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = CustomAutoScrollController(
-      beginGetter: (r) => r.top,
-      endGetter: (r) => r.bottom,
-    );
+    _controller = ItemScrollController();
+    _scrollOffsetController = ScrollOffsetController();
+    _scrollController = ScrollController();
     _loadMessages();
   }
 
@@ -225,7 +229,27 @@ class _ChatPageState extends State<ChatPage> {
       text: t,
     );
 
-    _streamedMessages.insert(0, textMessage);
+    var offset = _scrollController.offset;
+    var minScroll = _scrollController.position.minScrollExtent;
+    void scroll() {
+      print('Offset: $offset');
+      print('MinScroll: $minScroll');
+      if (offset == minScroll) {
+        Future.delayed(const Duration(milliseconds: 10), () {
+          _scrollController.jumpTo(
+            _scrollController.position.minScrollExtent,
+          );
+          offset = _scrollController.offset;
+          minScroll = _scrollController.position.minScrollExtent;
+        });
+      }
+    }
+
+    setState(() {
+      _streamedMessages.insert(0, textMessage);
+      positionedIndex = 2;
+      positionAlignment = 0;
+    });
     final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       t = '$t\nNew message';
       setState(() {
@@ -233,6 +257,7 @@ class _ChatPageState extends State<ChatPage> {
           text: t,
         ) as types.TextMessage;
       });
+      // scroll();
     });
     Future.delayed(const Duration(seconds: 5), () {
       print('Finished streaming');
@@ -240,7 +265,6 @@ class _ChatPageState extends State<ChatPage> {
 
       final msg = _streamedMessages.removeAt(0);
       _addMessage(msg);
-
       print('Updated messages');
     });
   }
@@ -259,7 +283,11 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Chat(
-          scrollController: _controller,
+          positionedIndex: positionedIndex,
+          positionedAlignment: positionAlignment,
+          scrollController: _scrollController,
+          itemScrollController: _controller,
+          scrollOffsetController: _scrollOffsetController,
           innerScrollableKey: _chatScrollableKey,
           streamedItems: _streamedMessages,
           streamedItemsBuilder: (item, index) => SizedBox(
