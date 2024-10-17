@@ -171,8 +171,13 @@ class _ChatListState extends State<ChatList>
   void _scrollToBottomIfNeeded(List<Object> oldList) {
     try {
       // Take index 1 because there is always a spacer on index 0.
-      final oldItem = oldList[1];
-      final item = widget.items[1];
+      final (oldItem, item) = switch (widget.mode) {
+        ChatListMode.conversation => (oldList[1], widget.items[1]),
+        ChatListMode.assistant => (
+            oldList[oldList.length - 2],
+            widget.items[widget.items.length - 2]
+          )
+      };
 
       if (oldItem is Map<String, Object> && item is Map<String, Object>) {
         final oldMessage = oldItem['message']! as types.Message;
@@ -184,13 +189,28 @@ class _ChatListState extends State<ChatList>
           if (message.author.id == InheritedUser.of(context).user.id) {
             // Delay to give some time for Flutter to calculate new
             // size after new message was added.
-            Future.delayed(const Duration(milliseconds: 100), () {
+            Future.delayed(const Duration(milliseconds: 100), () async {
               if (widget.scrollController.hasClients) {
-                widget.scrollController.animateTo(
-                  0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInQuad,
-                );
+                switch (widget.mode) {
+                  case ChatListMode.conversation:
+                    await widget.scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInQuad,
+                    );
+                  case ChatListMode.assistant:
+                    var extent =
+                        widget.scrollController.position.maxScrollExtent;
+                    do {
+                      extent = widget.scrollController.position.maxScrollExtent;
+                      await widget.scrollController.animateTo(
+                        widget.scrollController.position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 40),
+                        curve: Curves.linear,
+                      );
+                    } while (widget.scrollController.position.maxScrollExtent !=
+                        extent);
+                }
               }
             });
           }
