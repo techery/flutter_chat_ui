@@ -104,6 +104,7 @@ class Chat extends StatefulWidget {
     this.slidableMessageBuilder,
     this.isLeftStatus = false,
     this.messageWidthRatio = 0.72,
+    this.mode = ChatListMode.conversation,
   });
 
   /// See [Message.audioMessageBuilder].
@@ -341,6 +342,9 @@ class Chat extends StatefulWidget {
 
   /// Width ratio for message bubble.
   final double messageWidthRatio;
+
+  /// See [ChatListMode].
+  final ChatListMode mode;
 
   @override
   State<Chat> createState() => ChatState();
@@ -588,7 +592,7 @@ class ChatState extends State<Chat> {
 
     if (widget.messages.isNotEmpty) {
       final result = calculateChatMessages(
-        widget.messages,
+        widget.messages.reversed.toList(),
         widget.user,
         customDateHeaderText: widget.customDateHeaderText,
         dateFormat: widget.dateFormat,
@@ -602,7 +606,7 @@ class ChatState extends State<Chat> {
         messagesSpacerHeight: widget.messagesSpacerHeight,
       );
 
-      _chatMessages = result[0] as List<Object>;
+      _chatMessages = (result[0] as List<Object>).reversed.toList();
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
@@ -646,6 +650,7 @@ class ChatState extends State<Chat> {
                                     BoxConstraints constraints,
                                   ) =>
                                       ChatList(
+                                    mode: widget.mode,
                                     bottomWidget: widget.listBottomWidget,
                                     bubbleRtlAlignment:
                                         widget.bubbleRtlAlignment!,

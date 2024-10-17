@@ -206,26 +206,27 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _handleSendPressed(types.PartialText message) {
-    var t = message.text;
+    final t = message.text;
     final textMessage = types.TextMessage(
       author: _user,
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: const Uuid().v4(),
       text: t,
     );
+    _addMessage(textMessage);
 
-    _streamedMessages.insert(0, textMessage);
-    final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      t = '$t New message';
-      setState(() {
-        _streamedMessages[0] = textMessage.copyWith(
-          text: t,
-        ) as types.TextMessage;
-      });
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      timer.cancel();
-    });
+    // _streamedMessages.insert(0, textMessage);
+    // final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    //   t = '$t New message';
+    //   setState(() {
+    //     _streamedMessages[0] = textMessage.copyWith(
+    //       text: t,
+    //     ) as types.TextMessage;
+    //   });
+    // });
+    // Future.delayed(const Duration(seconds: 3), () {
+    //   timer.cancel();
+    // });
   }
 
   void _loadMessages() async {
@@ -235,7 +236,7 @@ class _ChatPageState extends State<ChatPage> {
         .toList();
 
     setState(() {
-      _messages = messages;
+      _messages = messages.reversed.toList();
     });
   }
 
@@ -250,6 +251,7 @@ class _ChatPageState extends State<ChatPage> {
           showUserAvatars: true,
           showUserNames: true,
           user: _user,
+          mode: ChatListMode.assistant,
         ),
       );
 }
