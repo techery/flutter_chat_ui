@@ -356,6 +356,7 @@ class ChatState extends State<Chat> {
   static const String _unreadHeaderId = 'unread_header_id';
 
   List<Object> _chatMessages = [];
+  List<types.Message> _oldMessages = [];
   List<PreviewImage> _gallery = [];
   PageController? _galleryPageController;
   bool _hadScrolledToUnreadOnOpen = false;
@@ -438,6 +439,40 @@ class ChatState extends State<Chat> {
       });
       _hadScrolledToUnreadOnOpen = true;
     }
+  }
+
+  void _maybeScrollToFirstAi() {
+    if (widget.mode != ChatListMode.assistant) return;
+    debugPrint('AAA ${widget.messages.length} << ${_oldMessages.length}');
+
+    final lastMessage = widget.messages.lastOrNull;
+    if (lastMessage == null) return;
+    debugPrint('Has last message');
+    if (lastMessage is! types.TextMessage) return;
+    debugPrint('Last message is text message');
+
+    final oldLastMessage = _oldMessages.lastOrNull;
+    if (oldLastMessage is types.TextMessage &&
+        oldLastMessage.id == lastMessage.id) return;
+    debugPrint('Old last message is not the same as the last message');
+
+    debugPrint(
+      'FF: ${lastMessage.id}'
+      '\nOO: ${oldLastMessage?.id}'
+      '\nPP: ${lastMessage.author.id}'
+      '\nXX: ${widget.user.id}',
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Future.delayed(const Duration(milliseconds: 300), () async {
+      if (mounted) {
+        // await Future.delayed(const Duration(milliseconds: 100));
+        await _scrollController.scrollToIndex(
+          _chatMessages.length - 2,
+          duration: const Duration(milliseconds: 300),
+          preferPosition: AutoScrollPosition.middle,
+        );
+      }
+    });
   }
 
   /// We need the index for auto scrolling because it will scroll until it reaches an index higher or equal that what it is scrolling towards. Index will be null for removed messages. Can just set to -1 for auto scroll.
@@ -611,7 +646,9 @@ class ChatState extends State<Chat> {
 
       _refreshAutoScrollMapping();
       _maybeScrollToFirstUnread();
+      _maybeScrollToFirstAi();
     }
+    _oldMessages = List.of(widget.messages);
   }
 
   @override

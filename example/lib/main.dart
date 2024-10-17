@@ -13,6 +13,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -39,11 +40,15 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  late final controller = AutoScrollController();
   List<types.Message> _messages = [];
-  final List<types.TextMessage> _streamedMessages = [];
   final _user = const types.User(
     id: '82091008-a484-4a89-ae75-a22bf8d6f3ac',
   );
+  final _ai = const types.User(
+    id: 'ASSISTANT',
+  );
+  Timer? timer;
 
   @override
   void initState() {
@@ -205,28 +210,50 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  void _handleSendPressed(types.PartialText message) {
-    final t = message.text;
+  void _handleSendPressed(types.PartialText message) async {
     final textMessage = types.TextMessage(
       author: _user,
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: const Uuid().v4(),
-      text: t,
+      text: message.text,
     );
     _addMessage(textMessage);
+    await Future.delayed(const Duration(milliseconds: 300));
 
-    // _streamedMessages.insert(0, textMessage);
-    // final timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-    //   t = '$t New message';
-    //   setState(() {
-    //     _streamedMessages[0] = textMessage.copyWith(
-    //       text: t,
-    //     ) as types.TextMessage;
-    //   });
-    // });
-    // Future.delayed(const Duration(seconds: 3), () {
-    //   timer.cancel();
-    // });
+    var t = 'AI response [${_messages.length}]';
+    final aiMessage = types.TextMessage(
+      author: _ai,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: const Uuid().v4(),
+      text: t,
+    );
+    _addMessage(aiMessage);
+    await Future.delayed(const Duration(seconds: 3));
+
+    final timer =
+        this.timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      setState(() {
+        t = '$t\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message';
+        _messages[_messages.length - 1] = aiMessage.copyWith(text: t);
+      });
+      // if (timer.isActive) {
+      //   controller.animateTo(
+      //     controller.position.maxScrollExtent,
+      //     duration: const Duration(milliseconds: 40),
+      //     curve: Curves.linear,
+      //   );
+      // }
+    });
+    Future.delayed(const Duration(seconds: 3), () {
+      if (timer.isActive) {
+        timer.cancel();
+        // controller.animateTo(
+        //   controller.position.maxScrollExtent,
+        //   duration: const Duration(milliseconds: 40),
+        //   curve: Curves.linear,
+        // );
+      }
+    });
   }
 
   void _loadMessages() async {
@@ -242,16 +269,22 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Chat(
-          messages: _messages,
-          onAttachmentPressed: _handleAttachmentPressed,
-          onMessageTap: _handleMessageTap,
-          onPreviewDataFetched: _handlePreviewDataFetched,
-          onSendPressed: _handleSendPressed,
-          showUserAvatars: true,
-          showUserNames: true,
-          user: _user,
-          mode: ChatListMode.assistant,
+        body: GestureDetector(
+          onTapDown: (_) {
+            timer?.cancel();
+          },
+          child: Chat(
+            scrollController: controller,
+            messages: _messages,
+            onAttachmentPressed: _handleAttachmentPressed,
+            onMessageTap: _handleMessageTap,
+            onPreviewDataFetched: _handlePreviewDataFetched,
+            onSendPressed: _handleSendPressed,
+            showUserAvatars: true,
+            showUserNames: true,
+            user: _user,
+            mode: ChatListMode.assistant,
+          ),
         ),
       );
 }

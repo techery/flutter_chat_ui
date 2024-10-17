@@ -145,11 +145,37 @@ class _ChatListState extends State<ChatList>
     try {
       final item = _oldData[index];
 
+      var child = widget.itemBuilder(item, index);
+      if (widget.mode == ChatListMode.assistant) {
+        if (index == _oldData.length - 2) {
+          if (item is Map<String, Object>) {
+            final message = item['message']! as types.Message;
+            final user = InheritedUser.of(context).user;
+
+            if (message.author.id != user.id) {
+              child = ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: 500,
+                ),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: child,
+                ),
+              );
+            }
+          }
+        }
+        return KeyedSubtree(
+          key: _valueKeyForItem(item),
+          child: child,
+        );
+      }
+
       return SizeTransition(
         key: _valueKeyForItem(item),
         axisAlignment: -1,
         sizeFactor: animation.drive(CurveTween(curve: Curves.easeOutQuad)),
-        child: widget.itemBuilder(item, index),
+        child: child,
       );
     } catch (e) {
       return const SizedBox();
@@ -166,6 +192,34 @@ class _ChatListState extends State<ChatList>
           child: widget.itemBuilder(item, null),
         ),
       );
+
+  void _scrollToBottom() {
+    // Delay to give some time for Flutter to calculate new
+    // size after new message was added.
+    // WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+    Future.delayed(const Duration(milliseconds: 100), () async {
+      if (widget.scrollController.hasClients) {
+        switch (widget.mode) {
+          case ChatListMode.conversation:
+            await widget.scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInQuad,
+            );
+          case ChatListMode.assistant:
+          // var extent = widget.scrollController.position.maxScrollExtent;
+          // do {
+          // extent = widget.scrollController.position.maxScrollExtent;
+          // await widget.scrollController.position.moveTo(
+          //   widget.scrollController.position.maxScrollExtent,
+          //   duration: const Duration(milliseconds: 200),
+          // );
+          // } while (
+          //     widget.scrollController.position.maxScrollExtent != extent);
+        }
+      }
+    });
+  }
 
   // Hacky solution to reconsider.
   void _scrollToBottomIfNeeded(List<Object> oldList) {
@@ -185,34 +239,13 @@ class _ChatListState extends State<ChatList>
 
         // Compare items to fire only on newly added messages.
         if (oldMessage.id != message.id) {
-          // Run only for sent message.
-          if (message.author.id == InheritedUser.of(context).user.id) {
-            // Delay to give some time for Flutter to calculate new
-            // size after new message was added.
-            Future.delayed(const Duration(milliseconds: 100), () async {
-              if (widget.scrollController.hasClients) {
-                switch (widget.mode) {
-                  case ChatListMode.conversation:
-                    await widget.scrollController.animateTo(
-                      0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInQuad,
-                    );
-                  case ChatListMode.assistant:
-                    var extent =
-                        widget.scrollController.position.maxScrollExtent;
-                    do {
-                      extent = widget.scrollController.position.maxScrollExtent;
-                      await widget.scrollController.animateTo(
-                        widget.scrollController.position.maxScrollExtent,
-                        duration: const Duration(milliseconds: 40),
-                        curve: Curves.linear,
-                      );
-                    } while (widget.scrollController.position.maxScrollExtent !=
-                        extent);
-                }
-              }
-            });
+          final user = InheritedUser.of(context).user;
+          final shouldScroll = switch (widget.mode) {
+            ChatListMode.conversation => message.author.id == user.id,
+            ChatListMode.assistant => message.author.id != user.id,
+          };
+          if (shouldScroll) {
+            _scrollToBottom();
           }
         }
       }
@@ -376,7 +409,6 @@ class _ChatListState extends State<ChatList>
             });
           });
         }
-        debugPrint('N $n');
         return true;
       },
       child: child,
