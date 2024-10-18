@@ -443,6 +443,7 @@ class ChatState extends State<Chat> {
 
   void _maybeScrollToFirstAi() {
     if (widget.mode != ChatListMode.assistant) return;
+    if (widget.messages.length < _oldMessages.length) return;
 
     final lastMessage = widget.messages.lastOrNull;
     if (lastMessage == null) return;
