@@ -453,6 +453,9 @@ class ChatState extends State<Chat> {
     final oldLastMessage = _oldMessages.lastOrNull;
     if (oldLastMessage?.author.id == lastMessage.author.id) return;
 
+    final preferPosition = lastMessage.author.id == widget.user.id
+        ? AutoScrollPosition.end
+        : AutoScrollPosition.middle;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         /// len - 1 -> spacer
@@ -460,7 +463,7 @@ class ChatState extends State<Chat> {
         await _scrollController.scrollToIndex(
           _chatMessages.length - 2,
           duration: const Duration(milliseconds: 300),
-          preferPosition: AutoScrollPosition.middle,
+          preferPosition: preferPosition,
         );
       }
     });
