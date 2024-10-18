@@ -261,6 +261,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Chat(
+          vpHeightPreferenceForAsisstant: 2 / 3,
           scrollController: controller,
           messages: _messages,
           onAttachmentPressed: _handleAttachmentPressed,

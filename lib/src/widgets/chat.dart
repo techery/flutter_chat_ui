@@ -105,6 +105,7 @@ class Chat extends StatefulWidget {
     this.isLeftStatus = false,
     this.messageWidthRatio = 0.72,
     this.mode = ChatListMode.conversation,
+    this.vpHeightPreferenceForAsisstant,
   });
 
   /// See [Message.audioMessageBuilder].
@@ -345,6 +346,7 @@ class Chat extends StatefulWidget {
 
   /// See [ChatListMode].
   final ChatListMode mode;
+  final double? vpHeightPreferenceForAsisstant;
 
   @override
   State<Chat> createState() => ChatState();
@@ -699,6 +701,8 @@ class ChatState extends State<Chat> {
                                         widget.typingIndicatorOptions,
                                     useTopSafeAreaInset:
                                         widget.useTopSafeAreaInset ?? isMobile,
+                                    vpHeightPreferenceForAsisstant:
+                                        widget.vpHeightPreferenceForAsisstant,
                                   ),
                                 ),
                               ),

@@ -30,6 +30,7 @@ class ChatList extends StatefulWidget {
     this.typingIndicatorOptions,
     required this.useTopSafeAreaInset,
     this.mode = ChatListMode.conversation,
+    this.vpHeightPreferenceForAsisstant,
   });
 
   /// A custom widget at the bottom of the list.
@@ -75,6 +76,7 @@ class ChatList extends StatefulWidget {
   final bool useTopSafeAreaInset;
 
   final ChatListMode mode;
+  final double? vpHeightPreferenceForAsisstant;
 
   @override
   State<ChatList> createState() => _ChatListState();
@@ -157,10 +159,15 @@ class _ChatListState extends State<ChatList>
             final user = InheritedUser.of(context).user;
 
             if (message.author.id != user.id) {
-              final sc = _listKey.currentContext?.findRenderObject();
-              final minHeight = sc is RenderSliverList
-                  ? sc.constraints.viewportMainAxisExtent / 3
-                  : 0.0;
+              var minHeight = 0.0;
+              if (widget.vpHeightPreferenceForAsisstant != null) {
+                final sc = _listKey.currentContext?.findRenderObject();
+                if (sc is RenderSliverList) {
+                  minHeight = sc.constraints.viewportMainAxisExtent *
+                      widget.vpHeightPreferenceForAsisstant!;
+                }
+              }
+
               child = ConstrainedBox(
                 constraints: BoxConstraints(
                   minHeight: minHeight,
