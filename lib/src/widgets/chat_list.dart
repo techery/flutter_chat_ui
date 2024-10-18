@@ -141,10 +141,13 @@ class _ChatListState extends State<ChatList>
     _oldData = List.from(newItems);
   }
 
-  Widget _newMessageBuilder(int index, Animation<double> animation) {
+  Widget _newMessageBuilder(
+    BuildContext context,
+    int index,
+    Animation<double> animation,
+  ) {
     try {
       final item = _oldData[index];
-
       var child = widget.itemBuilder(item, index);
       if (widget.mode == ChatListMode.assistant) {
         if (index == _oldData.length - 2) {
@@ -153,9 +156,11 @@ class _ChatListState extends State<ChatList>
             final user = InheritedUser.of(context).user;
 
             if (message.author.id != user.id) {
+              final sc = Scrollable.of(context).context.findRenderObject();
+              final minHeight = sc is RenderBox ? sc.size.height : 0.0;
               child = ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: 500,
+                constraints: BoxConstraints(
+                  minHeight: minHeight,
                 ),
                 child: Align(
                   alignment: Alignment.topLeft,
@@ -315,8 +320,8 @@ class _ChatListState extends State<ChatList>
             },
             initialItemCount: widget.items.length,
             key: _listKey,
-            itemBuilder: (_, index, animation) =>
-                _newMessageBuilder(index, animation),
+            itemBuilder: (context, index, animation) =>
+                _newMessageBuilder(context, index, animation),
           ),
         ),
       ),
@@ -361,17 +366,10 @@ class _ChatListState extends State<ChatList>
       controller: widget.scrollController,
       keyboardDismissBehavior: widget.keyboardDismissBehavior,
       physics: widget.scrollPhysics,
-      center: switch (widget.mode) {
-        ChatListMode.conversation => _centerKey,
-        ChatListMode.assistant => null
-      },
+      center: _centerKey,
       reverse: switch (widget.mode) {
         ChatListMode.conversation => true,
         ChatListMode.assistant => false
-      },
-      shrinkWrap: switch (widget.mode) {
-        ChatListMode.conversation => false,
-        ChatListMode.assistant => true
       },
       slivers: widgets,
     );
