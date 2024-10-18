@@ -193,62 +193,43 @@ class _ChatListState extends State<ChatList>
         ),
       );
 
-  void _scrollToBottom() {
-    // Delay to give some time for Flutter to calculate new
-    // size after new message was added.
-    // WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-    Future.delayed(const Duration(milliseconds: 100), () async {
-      if (widget.scrollController.hasClients) {
-        switch (widget.mode) {
-          case ChatListMode.conversation:
-            await widget.scrollController.animateTo(
-              0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInQuad,
-            );
-          case ChatListMode.assistant:
-          // var extent = widget.scrollController.position.maxScrollExtent;
-          // do {
-          // extent = widget.scrollController.position.maxScrollExtent;
-          // await widget.scrollController.position.moveTo(
-          //   widget.scrollController.position.maxScrollExtent,
-          //   duration: const Duration(milliseconds: 200),
-          // );
-          // } while (
-          //     widget.scrollController.position.maxScrollExtent != extent);
-        }
-      }
-    });
-  }
-
   // Hacky solution to reconsider.
-  void _scrollToBottomIfNeeded(List<Object> oldList) {
+  void _scrollToBottomIfNeeded(List<Object> oldList) async {
     try {
-      // Take index 1 because there is always a spacer on index 0.
-      final (oldItem, item) = switch (widget.mode) {
-        ChatListMode.conversation => (oldList[1], widget.items[1]),
-        ChatListMode.assistant => (
-            oldList[oldList.length - 2],
-            widget.items[widget.items.length - 2]
-          )
-      };
-
-      if (oldItem is Map<String, Object> && item is Map<String, Object>) {
-        final oldMessage = oldItem['message']! as types.Message;
-        final message = item['message']! as types.Message;
-
-        // Compare items to fire only on newly added messages.
-        if (oldMessage.id != message.id) {
-          final user = InheritedUser.of(context).user;
-          final shouldScroll = switch (widget.mode) {
-            ChatListMode.conversation => message.author.id == user.id,
-            ChatListMode.assistant => message.author.id != user.id,
-          };
-          if (shouldScroll) {
-            _scrollToBottom();
-          }
-        }
+      if (widget.mode != ChatListMode.conversation) {
+        return;
       }
+
+      // Take index 1 because there is always a spacer on index 0.
+      final oldItem = oldList[1];
+      final item = widget.items[1];
+
+      if (oldItem is! Map<String, Object> || item is! Map<String, Object>) {
+        return;
+      }
+
+      final oldMessage = oldItem['message']! as types.Message;
+      final message = item['message']! as types.Message;
+
+      // Compare items to fire only on newly added messages.
+      if (oldMessage.id == message.id) {
+        return;
+      }
+
+      if (message.author.id != InheritedUser.of(context).user.id) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!widget.scrollController.hasClients) {
+        return;
+      }
+
+      await widget.scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInQuad,
+      );
     } catch (e) {
       // Do nothing if there are no items.
     }
