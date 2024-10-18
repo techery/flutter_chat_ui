@@ -159,7 +159,7 @@ class _ChatListState extends State<ChatList>
             if (message.author.id != user.id) {
               final sc = _listKey.currentContext?.findRenderObject();
               final minHeight = sc is RenderSliverList
-                  ? (sc.constraints.viewportMainAxisExtent / 3 * 2)
+                  ? sc.constraints.viewportMainAxisExtent / 3
                   : 0.0;
               child = ConstrainedBox(
                 constraints: BoxConstraints(
