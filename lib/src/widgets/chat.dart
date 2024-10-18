@@ -447,11 +447,9 @@ class ChatState extends State<Chat> {
 
     final lastMessage = widget.messages.lastOrNull;
     if (lastMessage == null) return;
-    if (lastMessage is! types.TextMessage) return;
 
     final oldLastMessage = _oldMessages.lastOrNull;
-    if (oldLastMessage is types.TextMessage &&
-        oldLastMessage.author.id == lastMessage.author.id) return;
+    if (oldLastMessage?.author.id == lastMessage.author.id) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
