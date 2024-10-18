@@ -459,7 +459,7 @@ class ChatState extends State<Chat> {
         await _scrollController.scrollToIndex(
           _chatMessages.length - 2,
           duration: const Duration(milliseconds: 300),
-          preferPosition: AutoScrollPosition.begin,
+          preferPosition: AutoScrollPosition.middle,
         );
       }
     });
