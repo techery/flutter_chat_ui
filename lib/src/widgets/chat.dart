@@ -443,29 +443,19 @@ class ChatState extends State<Chat> {
 
   void _maybeScrollToFirstAi() {
     if (widget.mode != ChatListMode.assistant) return;
-    debugPrint('AAA ${widget.messages.length} << ${_oldMessages.length}');
 
     final lastMessage = widget.messages.lastOrNull;
     if (lastMessage == null) return;
-    debugPrint('Has last message');
     if (lastMessage is! types.TextMessage) return;
-    debugPrint('Last message is text message');
 
     final oldLastMessage = _oldMessages.lastOrNull;
     if (oldLastMessage is types.TextMessage &&
-        oldLastMessage.id == lastMessage.id) return;
-    debugPrint('Old last message is not the same as the last message');
+        oldLastMessage.author.id == lastMessage.author.id) return;
 
-    debugPrint(
-      'FF: ${lastMessage.id}'
-      '\nOO: ${oldLastMessage?.id}'
-      '\nPP: ${lastMessage.author.id}'
-      '\nXX: ${widget.user.id}',
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Future.delayed(const Duration(milliseconds: 300), () async {
       if (mounted) {
-        // await Future.delayed(const Duration(milliseconds: 100));
+        /// len - 1 -> spacer
+        /// len - 2 -> last message
         await _scrollController.scrollToIndex(
           _chatMessages.length - 2,
           duration: const Duration(milliseconds: 300),

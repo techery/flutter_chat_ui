@@ -48,7 +48,6 @@ class _ChatPageState extends State<ChatPage> {
   final _ai = const types.User(
     id: 'ASSISTANT',
   );
-  Timer? timer;
 
   @override
   void initState() {
@@ -210,16 +209,7 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  void _handleSendPressed(types.PartialText message) async {
-    final textMessage = types.TextMessage(
-      author: _user,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      id: const Uuid().v4(),
-      text: message.text,
-    );
-    _addMessage(textMessage);
-    await Future.delayed(const Duration(milliseconds: 300));
-
+  Future<void> _addAiMessage() async {
     var t = 'AI response [${_messages.length}]';
     final aiMessage = types.TextMessage(
       author: _ai,
@@ -230,30 +220,31 @@ class _ChatPageState extends State<ChatPage> {
     _addMessage(aiMessage);
     await Future.delayed(const Duration(seconds: 3));
 
-    final timer =
-        this.timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+    final timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       setState(() {
         t = '$t\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message';
         _messages[_messages.length - 1] = aiMessage.copyWith(text: t);
       });
-      // if (timer.isActive) {
-      //   controller.animateTo(
-      //     controller.position.maxScrollExtent,
-      //     duration: const Duration(milliseconds: 40),
-      //     curve: Curves.linear,
-      //   );
-      // }
     });
-    Future.delayed(const Duration(seconds: 3), () {
+    await Future.delayed(const Duration(seconds: 3), () {
       if (timer.isActive) {
         timer.cancel();
-        // controller.animateTo(
-        //   controller.position.maxScrollExtent,
-        //   duration: const Duration(milliseconds: 40),
-        //   curve: Curves.linear,
-        // );
       }
     });
+  }
+
+  void _handleSendPressed(types.PartialText message) async {
+    final textMessage = types.TextMessage(
+      author: _user,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: const Uuid().v4(),
+      text: message.text,
+    );
+    _addMessage(textMessage);
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    await _addAiMessage();
+    await _addAiMessage();
   }
 
   void _loadMessages() async {
@@ -269,22 +260,17 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: GestureDetector(
-          onTapDown: (_) {
-            timer?.cancel();
-          },
-          child: Chat(
-            scrollController: controller,
-            messages: _messages,
-            onAttachmentPressed: _handleAttachmentPressed,
-            onMessageTap: _handleMessageTap,
-            onPreviewDataFetched: _handlePreviewDataFetched,
-            onSendPressed: _handleSendPressed,
-            showUserAvatars: true,
-            showUserNames: true,
-            user: _user,
-            mode: ChatListMode.assistant,
-          ),
+        body: Chat(
+          scrollController: controller,
+          messages: _messages,
+          onAttachmentPressed: _handleAttachmentPressed,
+          onMessageTap: _handleMessageTap,
+          onPreviewDataFetched: _handlePreviewDataFetched,
+          onSendPressed: _handleSendPressed,
+          showUserAvatars: true,
+          showUserNames: true,
+          user: _user,
+          mode: ChatListMode.assistant,
         ),
       );
 }
