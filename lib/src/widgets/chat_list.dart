@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:diffutil_dart/diffutil.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../models/bubble_rtl_alignment.dart';
@@ -156,8 +157,10 @@ class _ChatListState extends State<ChatList>
             final user = InheritedUser.of(context).user;
 
             if (message.author.id != user.id) {
-              final sc = Scrollable.of(context).context.findRenderObject();
-              final minHeight = sc is RenderBox ? sc.size.height : 0.0;
+              final sc = _listKey.currentContext?.findRenderObject();
+              final minHeight = sc is RenderSliverList
+                  ? (sc.constraints.viewportMainAxisExtent / 3 * 2)
+                  : 0.0;
               child = ConstrainedBox(
                 constraints: BoxConstraints(
                   minHeight: minHeight,
