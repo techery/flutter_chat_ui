@@ -453,9 +453,8 @@ class ChatState extends State<Chat> {
     }
   }
 
-  void _maybeScrollToFirstAi() {
+  void _maintainLastUserMessageAtTheTop() {
     if (widget.mode != ChatListMode.assistant) return;
-    if (_didPutUserMessageAtTheTop) return;
 
     final lastMessage = widget.messages.lastOrNull;
     if (lastMessage == null) return;
@@ -650,7 +649,10 @@ class ChatState extends State<Chat> {
         _didPutUserMessageAtTheTop = false;
       }
       final result = calculateChatMessages(
-        widget.messages.reversed.toList(),
+        switch (widget.mode) {
+          ChatListMode.conversation => widget.messages,
+          ChatListMode.assistant => widget.messages.reversed.toList(),
+        },
         widget.user,
         customDateHeaderText: widget.customDateHeaderText,
         dateFormat: widget.dateFormat,
@@ -664,12 +666,18 @@ class ChatState extends State<Chat> {
         messagesSpacerHeight: widget.messagesSpacerHeight,
       );
 
-      _chatMessages = (result[0] as List<Object>).reversed.toList();
+      final resultingMessages = result[0] as List<Object>;
+      _chatMessages = switch (widget.mode) {
+        ChatListMode.conversation => resultingMessages,
+        ChatListMode.assistant => resultingMessages.reversed.toList(),
+      };
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
       _maybeScrollToFirstUnread();
-      _maybeScrollToFirstAi();
+      if (!_didPutUserMessageAtTheTop) {
+        _maintainLastUserMessageAtTheTop();
+      }
     }
     _oldMessages = List.of(widget.messages);
   }
