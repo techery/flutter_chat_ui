@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:diffutil_dart/diffutil.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../models/bubble_rtl_alignment.dart';
@@ -10,7 +9,21 @@ import 'state/inherited_chat_theme.dart';
 import 'state/inherited_user.dart';
 import 'typing_indicator.dart';
 
-enum ChatListMode { conversation, assistant }
+enum ChatListMode {
+  /*  Basic chat list mode - messages are displayed from bottom to the top (i.e. reversed).
+      When a new message is inserted it shifts layout to the top.
+      If that message was sent by current user - list would be scrolled to the bottom.
+  */
+  conversation,
+  /* Assistant chat list mode - messages are displayed from top to the bottom.
+     When a new message is inserted it shifts layout to the bottom.
+     If that message was sent by current user - list would be scrolled to the bottom,
+     although it would be an approximation.
+     Otherwise it is a message from Assistant then chat would try to scroll down
+     until User's message is at the very top of the list.
+  */
+  assistant,
+}
 
 /// Animated list that handles automatic animations and pagination.
 class ChatList extends StatefulWidget {
@@ -305,25 +318,22 @@ class _ChatListState extends State<ChatList>
       SliverPadding(
         key: _centerKey,
         padding: InheritedChatTheme.of(context).theme.chatContentMargin,
-        sliver: SliverOpacity(
-          opacity: _didLoadView ? 1 : 0,
-          sliver: SliverAnimatedList(
-            findChildIndexCallback: (Key key) {
-              if (key is ValueKey<Object>) {
-                final newIndex = widget.items.indexWhere(
-                  (v) => _valueKeyForItem(v) == key,
-                );
-                if (newIndex != -1) {
-                  return newIndex;
-                }
+        sliver: SliverAnimatedList(
+          findChildIndexCallback: (Key key) {
+            if (key is ValueKey<Object>) {
+              final newIndex = widget.items.indexWhere(
+                (v) => _valueKeyForItem(v) == key,
+              );
+              if (newIndex != -1) {
+                return newIndex;
               }
-              return null;
-            },
-            initialItemCount: widget.items.length,
-            key: _listKey,
-            itemBuilder: (context, index, animation) =>
-                _newMessageBuilder(context, index, animation),
-          ),
+            }
+            return null;
+          },
+          initialItemCount: widget.items.length,
+          key: _listKey,
+          itemBuilder: (context, index, animation) =>
+              _newMessageBuilder(context, index, animation),
         ),
       ),
     );
@@ -379,8 +389,10 @@ class _ChatListState extends State<ChatList>
         final metrics = n.metrics;
         if (!_didLoadView && metrics.extentAfter == metrics.maxScrollExtent) {
           WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-            widget.scrollController.jumpTo(
+            widget.scrollController.animateTo(
               widget.scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutQuad,
             );
             Future.delayed(const Duration(milliseconds: 100), () {
               setState(() {
