@@ -223,11 +223,11 @@ class _ChatPageState extends State<ChatPage> {
 
     final timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       setState(() {
-        t = '$t\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message\nNew message';
+        t = '$t\nNew message';
         _messages[_messages.length - 1] = aiMessage.copyWith(text: t);
       });
     });
-    await Future.delayed(const Duration(seconds: 3), () {
+    await Future.delayed(const Duration(seconds: 5), () {
       if (timer.isActive) {
         timer.cancel();
         setState(() {

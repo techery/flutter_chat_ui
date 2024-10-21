@@ -475,7 +475,8 @@ class ChatState extends State<Chat> {
           Offset.zero,
           ancestor: Scrollable.of(ctx).context.findRenderObject(),
         );
-        if (offset.dy <= 0) {
+        debugPrint('offset: $offset');
+        if (offset.dy <= 100) {
           _didPutUserMsgAtTheTop = true;
           return;
         }
