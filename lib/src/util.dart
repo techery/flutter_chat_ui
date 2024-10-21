@@ -11,7 +11,6 @@ import 'models/emoji_enlargement_behavior.dart';
 import 'models/message_spacer.dart';
 import 'models/preview_image.dart';
 import 'models/unread_header_data.dart';
-import 'widgets/chat_list.dart';
 
 /// Returns text representation of a provided bytes value (e.g. 1kB, 1GB).
 String formatBytes(int size, [int fractionDigits = 2]) {

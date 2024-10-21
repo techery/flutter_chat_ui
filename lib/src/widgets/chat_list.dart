@@ -156,46 +156,24 @@ class _ChatListState extends State<ChatList>
   }
 
   Widget _newMessageBuilder(
-    BuildContext context,
     int index,
     Animation<double> animation,
   ) {
     try {
       final item = _oldData[index];
-      var child = widget.itemBuilder(item, index);
-      if (widget.mode == ChatListMode.assistant) {
-        if (index == _oldData.length - 2) {
-          if (item is Map<String, Object>) {
-            final message = item['message']! as types.Message;
-            final user = InheritedUser.of(context).user;
-
-            if (message.author.id != user.id) {
-              const minHeight = 0.0;
-
-              child = ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: minHeight,
-                ),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: child,
-                ),
-              );
-            }
-          }
-        }
-        return KeyedSubtree(
-          key: _valueKeyForItem(item),
-          child: child,
-        );
-      }
-
-      return SizeTransition(
-        key: _valueKeyForItem(item),
-        axisAlignment: -1,
-        sizeFactor: animation.drive(CurveTween(curve: Curves.easeOutQuad)),
-        child: child,
-      );
+      final child = widget.itemBuilder(item, index);
+      return switch (widget.mode) {
+        ChatListMode.assistant => KeyedSubtree(
+            key: _valueKeyForItem(item),
+            child: child,
+          ),
+        ChatListMode.conversation => SizeTransition(
+            key: _valueKeyForItem(item),
+            axisAlignment: -1,
+            sizeFactor: animation.drive(CurveTween(curve: Curves.easeOutQuad)),
+            child: child,
+          ),
+      };
     } catch (e) {
       return const SizedBox();
     }
@@ -332,8 +310,8 @@ class _ChatListState extends State<ChatList>
           },
           initialItemCount: widget.items.length,
           key: _listKey,
-          itemBuilder: (context, index, animation) =>
-              _newMessageBuilder(context, index, animation),
+          itemBuilder: (_, index, animation) =>
+              _newMessageBuilder(index, animation),
         ),
       ),
     );
