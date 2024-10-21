@@ -362,27 +362,27 @@ class _ChatListState extends State<ChatList>
       },
       slivers: widgets,
     );
-    child = NotificationListener<ScrollMetricsNotification>(
-      onNotification: (n) {
-        final metrics = n.metrics;
-        if (!_didLoadView && metrics.extentAfter == metrics.maxScrollExtent) {
-          WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-            widget.scrollController.animateTo(
-              widget.scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutQuad,
-            );
-            Future.delayed(const Duration(milliseconds: 100), () {
-              setState(() {
-                _didLoadView = true;
-              });
+
+    /// Scroll to the bottom of the list when the view is first loaded.
+    if (widget.mode == ChatListMode.assistant) {
+      child = NotificationListener<ScrollMetricsNotification>(
+        onNotification: (notification) {
+          final metrics = notification.metrics;
+          if (!_didLoadView && metrics.extentAfter == metrics.maxScrollExtent) {
+            WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+              widget.scrollController.animateTo(
+                widget.scrollController.position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutQuad,
+              );
+              _didLoadView = true;
             });
-          });
-        }
-        return true;
-      },
-      child: child,
-    );
+          }
+          return true;
+        },
+        child: child,
+      );
+    }
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification.metrics.pixels > 10.0 && !_indicatorOnScrollStatus) {
