@@ -31,6 +31,9 @@ import 'unread_header.dart';
 /// Keep track of all the auto scroll indices by their respective message's id to allow animating to them.
 final Map<String, int> chatMessageAutoScrollIndexById = {};
 
+/// Threshold of pixels that stops autoscroll of last user's message when reached.
+const _aiAutoScrollThreshold = 100;
+
 /// Entry widget, represents the complete chat. If you wrap it in [SafeArea] and
 /// it should be full screen, set [SafeArea]'s `bottom` to `false`.
 class Chat extends StatefulWidget {
@@ -104,6 +107,7 @@ class Chat extends StatefulWidget {
     this.slidableMessageBuilder,
     this.isLeftStatus = false,
     this.messageWidthRatio = 0.72,
+    this.mode = ChatListMode.conversation,
   });
 
   /// See [Message.audioMessageBuilder].
@@ -342,6 +346,9 @@ class Chat extends StatefulWidget {
   /// Width ratio for message bubble.
   final double messageWidthRatio;
 
+  /// See [ChatListMode].
+  final ChatListMode mode;
+
   @override
   State<Chat> createState() => ChatState();
 }
@@ -352,10 +359,20 @@ class ChatState extends State<Chat> {
   static const String _unreadHeaderId = 'unread_header_id';
 
   List<Object> _chatMessages = [];
+  List<types.Message> _oldMessages = [];
   List<PreviewImage> _gallery = [];
   PageController? _galleryPageController;
   bool _hadScrolledToUnreadOnOpen = false;
   bool _isImageViewVisible = false;
+
+  /// Flag for notifying that the user message is at the top of the list.
+  /// This indicates that AI's response was big enough to fill the entire screen,
+  /// so that User's message can be scrolled to the top.
+  /// Until that's the case chat prevents scrolling as auto-scroll tryies to show
+  /// all of AI's response while it is producing it. When the flag is set to true
+  /// during autoscroll that means there is enough content for the User to read and scroll
+  /// so the scroll physics can once again be used.
+  bool _didPutUserMessageAtTheTop = false;
 
   late final AutoScrollController _scrollController;
 
@@ -434,6 +451,47 @@ class ChatState extends State<Chat> {
       });
       _hadScrolledToUnreadOnOpen = true;
     }
+  }
+
+  void _maintainLastUserMessageAtTheTop() {
+    if (widget.mode != ChatListMode.assistant) return;
+
+    final lastMessage = widget.messages.lastOrNull;
+    if (lastMessage == null) return;
+
+    if (widget.typingIndicatorOptions.typingUsers.isEmpty) {
+      if (lastMessage.author.id != widget.user.id) {
+        return;
+      }
+    }
+    if (widget.messages.length < _oldMessages.length) return;
+    final lastUserMsg = widget.messages.reversed
+        .where((it) => it.author.id == widget.user.id)
+        .firstOrNull;
+    if (lastUserMsg == null) return;
+
+    final widgetIndex = chatMessageAutoScrollIndexById[lastUserMsg.id];
+    if (widgetIndex == null) return;
+
+    final ctx = _scrollController.tagMap[widgetIndex]?.context;
+    if (ctx != null) {
+      final object = ctx.findRenderObject();
+      if (object is RenderBox) {
+        final offset = object.localToGlobal(
+          Offset.zero,
+          ancestor: Scrollable.of(ctx).context.findRenderObject(),
+        );
+        if (offset.dy <= _aiAutoScrollThreshold) {
+          _didPutUserMessageAtTheTop = true;
+          return;
+        }
+      }
+    }
+    _scrollController.scrollToIndex(
+      widgetIndex,
+      duration: const Duration(milliseconds: 300),
+      preferPosition: AutoScrollPosition.begin,
+    );
   }
 
   /// We need the index for auto scrolling because it will scroll until it reaches an index higher or equal that what it is scrolling towards. Index will be null for removed messages. Can just set to -1 for auto scroll.
@@ -587,8 +645,14 @@ class ChatState extends State<Chat> {
     super.didUpdateWidget(oldWidget);
 
     if (widget.messages.isNotEmpty) {
+      if (widget.messages.last.author.id == widget.user.id) {
+        _didPutUserMessageAtTheTop = false;
+      }
       final result = calculateChatMessages(
-        widget.messages,
+        switch (widget.mode) {
+          ChatListMode.conversation => widget.messages,
+          ChatListMode.assistant => widget.messages.reversed.toList(),
+        },
         widget.user,
         customDateHeaderText: widget.customDateHeaderText,
         dateFormat: widget.dateFormat,
@@ -602,12 +666,20 @@ class ChatState extends State<Chat> {
         messagesSpacerHeight: widget.messagesSpacerHeight,
       );
 
-      _chatMessages = result[0] as List<Object>;
+      final resultingMessages = result[0] as List<Object>;
+      _chatMessages = switch (widget.mode) {
+        ChatListMode.conversation => resultingMessages,
+        ChatListMode.assistant => resultingMessages.reversed.toList(),
+      };
       _gallery = result[1] as List<PreviewImage>;
 
       _refreshAutoScrollMapping();
       _maybeScrollToFirstUnread();
+      if (!_didPutUserMessageAtTheTop) {
+        _maintainLastUserMessageAtTheTop();
+      }
     }
+    _oldMessages = List.of(widget.messages);
   }
 
   @override
@@ -646,6 +718,7 @@ class ChatState extends State<Chat> {
                                     BoxConstraints constraints,
                                   ) =>
                                       ChatList(
+                                    mode: widget.mode,
                                     bottomWidget: widget.listBottomWidget,
                                     bubbleRtlAlignment:
                                         widget.bubbleRtlAlignment!,
@@ -663,7 +736,17 @@ class ChatState extends State<Chat> {
                                     onEndReachedThreshold:
                                         widget.onEndReachedThreshold,
                                     scrollController: _scrollController,
-                                    scrollPhysics: widget.scrollPhysics,
+                                    scrollPhysics: switch (widget.mode) {
+                                      ChatListMode.conversation =>
+                                        widget.scrollPhysics,
+                                      ChatListMode.assistant => widget
+                                                  .typingIndicatorOptions
+                                                  .typingUsers
+                                                  .isNotEmpty &&
+                                              !_didPutUserMessageAtTheTop
+                                          ? const NeverScrollableScrollPhysics()
+                                          : widget.scrollPhysics,
+                                    },
                                     typingIndicatorOptions:
                                         widget.typingIndicatorOptions,
                                     useTopSafeAreaInset:
