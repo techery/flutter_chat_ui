@@ -445,28 +445,47 @@ class ChatState extends State<Chat> {
 
   void _maybeScrollToFirstAi() {
     if (widget.mode != ChatListMode.assistant) return;
-    if (widget.messages.length < _oldMessages.length) return;
 
     final lastMessage = widget.messages.lastOrNull;
     if (lastMessage == null) return;
 
-    final oldLastMessage = _oldMessages.lastOrNull;
-    if (oldLastMessage?.author.id == lastMessage.author.id) return;
+    if (widget.typingIndicatorOptions.typingUsers.isEmpty) {
+      if (lastMessage.author.id != widget.user.id) {
+        return;
+      }
+    }
+    if (widget.messages.length < _oldMessages.length) return;
 
-    final preferPosition = lastMessage.author.id == widget.user.id
-        ? AutoScrollPosition.end
-        : AutoScrollPosition.middle;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
-        /// len - 1 -> spacer
-        /// len - 2 -> last message
-        await _scrollController.scrollToIndex(
-          _chatMessages.length - 2,
-          duration: const Duration(milliseconds: 300),
-          preferPosition: preferPosition,
+    final prevMessage =
+        widget.messages.elementAtOrNull(widget.messages.length - 2);
+    if (prevMessage?.author.id == lastMessage.author.id) return;
+
+    final widgetIndex = _chatMessages.length - 2;
+    final ctx = _scrollController.tagMap[widgetIndex]?.context;
+    if (ctx == null) {
+      _scrollController.scrollToIndex(
+        widgetIndex,
+        duration: const Duration(milliseconds: 300),
+        preferPosition: AutoScrollPosition.begin,
+      );
+      return;
+    }
+
+    final renderBox = ctx.findRenderObject()!;
+    if (renderBox is RenderBox) {
+      final height = renderBox.size.height;
+      final vpHeight =
+          Scrollable.of(ctx).context.findRenderObject()?.paintBounds.height ??
+              0.0;
+      final part = vpHeight * (widget.vpHeightPreferenceForAsisstant ?? 1);
+      if (height < part) {
+        _scrollController.scrollToIndex(
+          widgetIndex,
+          duration: const Duration(milliseconds: 50),
+          preferPosition: AutoScrollPosition.begin,
         );
       }
-    });
+    }
   }
 
   /// We need the index for auto scrolling because it will scroll until it reaches an index higher or equal that what it is scrolling towards. Index will be null for removed messages. Can just set to -1 for auto scroll.

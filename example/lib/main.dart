@@ -42,6 +42,7 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   late final controller = AutoScrollController();
   List<types.Message> _messages = [];
+  bool _isAiTyping = false;
   final _user = const types.User(
     id: '82091008-a484-4a89-ae75-a22bf8d6f3ac',
   );
@@ -229,6 +230,9 @@ class _ChatPageState extends State<ChatPage> {
     await Future.delayed(const Duration(seconds: 3), () {
       if (timer.isActive) {
         timer.cancel();
+        setState(() {
+          _isAiTyping = false;
+        });
       }
     });
   }
@@ -240,8 +244,9 @@ class _ChatPageState extends State<ChatPage> {
       id: const Uuid().v4(),
       text: message.text,
     );
+    _isAiTyping = true;
     _addMessage(textMessage);
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(seconds: 3));
 
     await _addAiMessage();
     await _addAiMessage();
@@ -271,6 +276,11 @@ class _ChatPageState extends State<ChatPage> {
           showUserAvatars: true,
           showUserNames: true,
           user: _user,
+          typingIndicatorOptions: TypingIndicatorOptions(
+            typingUsers: [
+              if (_isAiTyping) _ai,
+            ],
+          ),
           mode: ChatListMode.assistant,
         ),
       );

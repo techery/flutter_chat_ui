@@ -159,17 +159,10 @@ class _ChatListState extends State<ChatList>
             final user = InheritedUser.of(context).user;
 
             if (message.author.id != user.id) {
-              var minHeight = 0.0;
-              if (widget.vpHeightPreferenceForAsisstant != null) {
-                final sc = _listKey.currentContext?.findRenderObject();
-                if (sc is RenderSliverList) {
-                  minHeight = sc.constraints.viewportMainAxisExtent *
-                      widget.vpHeightPreferenceForAsisstant!;
-                }
-              }
+              const minHeight = 0.0;
 
               child = ConstrainedBox(
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                   minHeight: minHeight,
                 ),
                 child: Align(
