@@ -30,7 +30,6 @@ class ChatList extends StatefulWidget {
     this.typingIndicatorOptions,
     required this.useTopSafeAreaInset,
     this.mode = ChatListMode.conversation,
-    this.vpHeightPreferenceForAsisstant,
   });
 
   /// A custom widget at the bottom of the list.
@@ -76,7 +75,6 @@ class ChatList extends StatefulWidget {
   final bool useTopSafeAreaInset;
 
   final ChatListMode mode;
-  final double? vpHeightPreferenceForAsisstant;
 
   @override
   State<ChatList> createState() => _ChatListState();
