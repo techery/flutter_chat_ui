@@ -117,10 +117,10 @@ class _ChatListState extends State<ChatList>
     didUpdateWidget(widget);
   }
 
-  void _calculateDiffs(List<Object> oldList, List<Object> newItems) async {
+  void _calculateDiffs(List<Object> oldList) async {
     final diffResult = calculateListDiff<Object>(
       oldList,
-      newItems,
+      widget.items,
       equalityChecker: (item1, item2) {
         if (item1 is Map<String, Object> && item2 is Map<String, Object>) {
           final message1 = item1['message']! as types.Message;
@@ -152,7 +152,7 @@ class _ChatListState extends State<ChatList>
 
     _scrollToBottomIfNeeded(oldList);
 
-    _oldData = List.from(newItems);
+    _oldData = List.from(widget.items);
   }
 
   Widget _newMessageBuilder(
@@ -246,7 +246,7 @@ class _ChatListState extends State<ChatList>
   void didUpdateWidget(covariant ChatList oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    _calculateDiffs(oldWidget.items, widget.items);
+    _calculateDiffs(oldWidget.items);
   }
 
   @override
