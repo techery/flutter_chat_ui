@@ -191,7 +191,7 @@ class _ChatListState extends State<ChatList>
       );
 
   // Hacky solution to reconsider.
-  void _scrollToBottomIfNeeded(List<Object> oldList) async {
+  void _scrollToBottomIfNeeded(List<Object> oldList) {
     try {
       if (widget.mode != ChatListMode.conversation) {
         return;
@@ -201,32 +201,28 @@ class _ChatListState extends State<ChatList>
       final oldItem = oldList[1];
       final item = widget.items[1];
 
-      if (oldItem is! Map<String, Object> || item is! Map<String, Object>) {
-        return;
+      if (oldItem is Map<String, Object> && item is Map<String, Object>) {
+        final oldMessage = oldItem['message']! as types.Message;
+        final message = item['message']! as types.Message;
+
+        // Compare items to fire only on newly added messages.
+        if (oldMessage.id != message.id) {
+          // Run only for sent message.
+          if (message.author.id == InheritedUser.of(context).user.id) {
+            // Delay to give some time for Flutter to calculate new
+            // size after new message was added.
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (widget.scrollController.hasClients) {
+                widget.scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInQuad,
+                );
+              }
+            });
+          }
+        }
       }
-
-      final oldMessage = oldItem['message']! as types.Message;
-      final message = item['message']! as types.Message;
-
-      // Compare items to fire only on newly added messages.
-      if (oldMessage.id == message.id) {
-        return;
-      }
-
-      if (message.author.id != InheritedUser.of(context).user.id) {
-        return;
-      }
-
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (!widget.scrollController.hasClients) {
-        return;
-      }
-
-      await widget.scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInQuad,
-      );
     } catch (e) {
       // Do nothing if there are no items.
     }
