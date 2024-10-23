@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,6 +13,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:mime/mime.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -38,9 +40,14 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
+  late final controller = AutoScrollController();
   List<types.Message> _messages = [];
+  bool _isAiTyping = false;
   final _user = const types.User(
     id: '82091008-a484-4a89-ae75-a22bf8d6f3ac',
+  );
+  final _ai = const types.User(
+    id: 'ASSISTANT',
   );
 
   @override
@@ -51,7 +58,7 @@ class _ChatPageState extends State<ChatPage> {
 
   void _addMessage(types.Message message) {
     setState(() {
-      _messages.insert(0, message);
+      _messages.add(message);
     });
   }
 
@@ -203,15 +210,46 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  void _handleSendPressed(types.PartialText message) {
+  Future<void> _addAiMessage() async {
+    var t = 'AI response [${_messages.length}]';
+    final aiMessage = types.TextMessage(
+      author: _ai,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: const Uuid().v4(),
+      text: t,
+    );
+    _addMessage(aiMessage);
+    await Future.delayed(const Duration(seconds: 3));
+
+    final timer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      setState(() {
+        t = '$t\nNew message';
+        _messages[_messages.length - 1] = aiMessage.copyWith(text: t);
+      });
+    });
+    await Future.delayed(const Duration(seconds: 5), () {
+      if (timer.isActive) {
+        timer.cancel();
+        setState(() {
+          _isAiTyping = false;
+        });
+      }
+    });
+  }
+
+  void _handleSendPressed(types.PartialText message) async {
     final textMessage = types.TextMessage(
       author: _user,
       createdAt: DateTime.now().millisecondsSinceEpoch,
       id: const Uuid().v4(),
       text: message.text,
     );
-
+    _isAiTyping = true;
     _addMessage(textMessage);
+    await Future.delayed(const Duration(seconds: 3));
+
+    await _addAiMessage();
+    await _addAiMessage();
   }
 
   void _loadMessages() async {
@@ -221,13 +259,14 @@ class _ChatPageState extends State<ChatPage> {
         .toList();
 
     setState(() {
-      _messages = messages;
+      _messages = messages.reversed.toList();
     });
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Chat(
+          scrollController: controller,
           messages: _messages,
           onAttachmentPressed: _handleAttachmentPressed,
           onMessageTap: _handleMessageTap,
@@ -236,6 +275,12 @@ class _ChatPageState extends State<ChatPage> {
           showUserAvatars: true,
           showUserNames: true,
           user: _user,
+          typingIndicatorOptions: TypingIndicatorOptions(
+            typingUsers: [
+              if (_isAiTyping) _ai,
+            ],
+          ),
+          mode: ChatListMode.assistant,
         ),
       );
 }
